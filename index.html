@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Hit Music Maker - Tạo MV từ Ảnh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0b130e;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Hiệu ứng chuyển động điện ảnh cho ảnh kết quả */
+        @keyframes cinematicMove {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.12) translateY(-8px); }
+            100% { transform: scale(1) translateY(0); }
+        }
+        .playing-animation {
+            animation: cinematicMove 12s infinite ease-in-out;
+        }
+        .card-bg {
+            background: linear-gradient(145deg, #132419, #0d1811);
+            border: 1px solid #23422e;
+        }
+        .music-btn {
+            background: linear-gradient(145deg, #1e4d35, #113021);
+            border: 1px solid #347a56;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <!-- Khung Điện Thoại Giả Lập -->
+    <div class="w-full max-w-md card-bg rounded-3xl p-5 shadow-2xl">
+        
+        <!-- Tiêu đề -->
+        <div class="text-center mb-5">
+            <h1 class="text-2xl font-bold text-emerald-400">🎵 AI Hit Music Maker</h1>
+            <p class="text-xs text-gray-400 mt-1">Ghép ảnh của bạn + Nhạc AI thành MV Nghệ Thuật</p>
+        </div>
+
+        <!-- Khu vực 2 ô vuông phía trên (Giống hệt ảnh mẫu) -->
+        <div class="flex items-center justify-between gap-2 mb-6">
+            
+            <!-- Ô 1: Tải ảnh lên -->
+            <label for="imageUpload" class="w-5/12 aspect-square rounded-2xl border-2 border-dashed border-emerald-600/60 flex flex-col items-center justify-center cursor-pointer overflow-hidden relative bg-black/40 hover:border-emerald-400 transition">
+                <img id="previewInput" class="w-full h-full object-cover hidden" alt="Ảnh của bạn">
+                <div id="uploadPlaceholder" class="text-center p-2">
+                    <span class="text-3xl">📷</span>
+                    <p class="text-xs text-gray-300 mt-2 font-medium">Bấm chọn ảnh của bạn</p>
+                </div>
+                <input type="file" id="imageUpload" accept="image/*" class="hidden">
+            </label>
+
+            <!-- Dấu cộng ở giữa -->
+            <div class="text-2xl font-bold text-gray-300">+</div>
+
+            <!-- Ô 2: Chọn Nhạc AI -->
+            <div class="w-5/12 aspect-square rounded-2xl music-btn flex flex-col items-center justify-center p-3 text-center shadow-lg">
+                <div class="text-4xl mb-2">🎵</div>
+                <span class="font-bold text-sm text-white mb-2">Nhạc AI</span>
+                <select id="musicSelect" class="w-full bg-black/50 text-xs text-emerald-200 rounded-lg p-1.5 border border-emerald-600/40 outline-none">
+                    <option value="sad">Giai điệu Lofi Buồn</option>
+                    <option value="epic">Nhạc Điện Ảnh Ngầu</option>
+                    <option value="chill">Nhạc Acoustic Chill</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tùy chọn phong cách hình ảnh -->
+        <div class="mb-4">
+            <label class="text-xs text-gray-400 block mb-1">Chọn phong cách hình ảnh AI:</label>
+            <select id="styleSelect" class="w-full bg-black/60 text-sm text-white rounded-xl p-2.5 border border-emerald-700/50 outline-none">
+                <option value="noir">Đen trắng u sầu (Giống ảnh mẫu)</option>
+                <option value="vintage">Phim cổ điển (Vintage)</option>
+                <option value="cyber">Tương phản sắc nét (Cyber)</option>
+            </select>
+        </div>
+
+        <!-- Nút bấm Tạo -->
+        <button id="generateBtn" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition duration-200 mb-6 flex items-center justify-center gap-2">
+            <span>✨ Tạo MV cùng AI ngay</span>
+        </button>
+
+        <!-- Khu vực hiển thị Kết Quả phía dưới -->
+        <div class="relative w-full aspect-[3/4] bg-black/80 rounded-2xl overflow-hidden border border-gray-700 flex items-center justify-center">
+            
+            <!-- Trạng thái chờ -->
+            <div id="emptyResult" class="text-center p-6 text-gray-500">
+                <p class="text-sm">Kết quả MV sẽ hiển thị tại đây sau khi bạn tải ảnh và bấm tạo.</p>
+            </div>
+
+            <!-- Hiệu ứng đang tải AI -->
+            <div id="loadingState" class="hidden flex-col items-center justify-center text-center p-6">
+                <div class="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p class="text-sm text-emerald-300 font-medium">AI đang phối nhạc và xử lý ảnh...</p>
+            </div>
+
+            <!-- Khung chứa ảnh/video kết quả -->
+            <div id="resultContainer" class="hidden w-full h-full relative overflow-hidden">
+                <canvas id="outputCanvas" class="w-full h-full object-cover playing-animation"></canvas>
+                
+                <!-- Lớp phủ thông tin bài hát giống TikTok/Reels -->
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4">
+                    <p class="font-bold text-white text-base">AI Hit Music Maker</p>
+                    <p id="songTitleDisplay" class="text-xs text-emerald-300 flex items-center gap-1 mt-1">
+                        🎵 Đang phát: Bản phối AI độc quyền
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nút điều khiển nhạc và tải về -->
+        <div id="actionButtons" class="hidden flex gap-3 mt-4">
+            <button id="toggleAudioBtn" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs font-semibold border border-gray-600">
+                ⏸️ Tạm dừng nhạc
+            </button>
+            <button id="downloadBtn" class="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-xs font-semibold">
+                ⬇️ Tải ảnh Poster về
+            </button>
+        </div>
+
+        <!-- Trình phát nhạc ẩn -->
+        <audio id="audioPlayer" loop></audio>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const previewInput = document.getElementById('previewInput');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const generateBtn = document.getElementById('generateBtn');
+        const musicSelect = document.getElementById('musicSelect');
+        const styleSelect = document.getElementById('styleSelect');
+        
+        const emptyResult = document.getElementById('emptyResult');
+        const loadingState = document.getElementById('loadingState');
+        const resultContainer = document.getElementById('resultContainer');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const actionButtons = document.getElementById('actionButtons');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const songTitleDisplay = document.getElementById('songTitleDisplay');
+
+        let uploadedImage = null;
+
+        // Danh sách nhạc mẫu miễn phí bản quyền
+        const musicTracks = {
+            sad: {
+                url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3",
+                name: "🎵 Giai điệu Lofi Mùa Đông (AI Remix)"
+            },
+            epic: {
+                url: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3",
+                name: "🎵 Điện Ảnh Hùng Tráng (AI Master)"
+            },
+            chill: {
+                url: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3",
+                name: "🎵 Acoustic Chiều Mưa (AI Vocal)"
+            }
+        };
+
+        // 1. Xử lý khi người dùng chọn ảnh
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                previewInput.src = event.target.result;
+                previewInput.classList.remove('hidden');
+                uploadPlaceholder.classList.add('hidden');
+
+                uploadedImage = new Image();
+                uploadedImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Xử lý khi bấm nút Tạo MV
+        generateBtn.addEventListener('click', function() {
+            if (!uploadedImage) {
+                alert("Bạn vui lòng bấm vào ô bên trái để chọn 1 bức ảnh trước nhé!");
+                return;
+            }
+
+            // Hiển thị trạng thái đang tải
+            emptyResult.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            actionButtons.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            loadingState.classList.add('flex');
+            audioPlayer.pause();
+
+            // Giả lập thời gian AI xử lý 2 giây
+            setTimeout(() => {
+                renderArtisticImage();
+                
+                loadingState.classList.add('hidden');
+                loadingState.classList.remove('flex');
+                resultContainer.classList.remove('hidden');
+                actionButtons.classList.remove('hidden');
+
+                // Phát nhạc
+                const selectedTrack = musicTracks[musicSelect.value];
+                audioPlayer.src = selectedTrack.url;
+                songTitleDisplay.innerText = selectedTrack.name;
+                audioPlayer.play();
+                toggleAudioBtn.innerText = "⏸️ Tạm dừng nhạc";
+            }, 2000);
+        });
+
+        // 3. Hàm vẽ và chỉnh màu ảnh theo phong cách điện ảnh
+        function renderArtisticImage() {
+            const ctx = outputCanvas.getContext('2d');
+            outputCanvas.width = 600;
+            outputCanvas.height = 800;
+
+            // Tính toán cắt ảnh vừa khung dọc 3:4
+            const imgRatio = uploadedImage.width / uploadedImage.height;
+            const canvasRatio = outputCanvas.width / outputCanvas.height;
+            let drawWidth, drawHeight, offsetX, offsetY;
+
+            if (imgRatio > canvasRatio) {
+                drawHeight = outputCanvas.height;
+                drawWidth = uploadedImage.width * (outputCanvas.height / uploadedImage.height);
+                offsetX = -(drawWidth - outputCanvas.width) / 2;
+                offsetY = 0;
+            } else {
+                drawWidth = outputCanvas.width;
+                drawHeight = uploadedImage.height * (outputCanvas.width / uploadedImage.width);
+                offsetX = 0;
+                offsetY = -(drawHeight - outputCanvas.height) / 2;
+            }
+
+            // Áp dụng bộ lọc màu theo lựa chọn
+            const style = styleSelect.value;
+            if (style === 'noir') {
+                ctx.filter = 'grayscale(100%) contrast(125%) brightness(90%)';
+            } else if (style === 'vintage') {
+                ctx.filter = 'sepia(60%) contrast(115%) brightness(95%)';
+            } else {
+                ctx.filter = 'contrast(140%) saturate(130%)';
+            }
+
+            ctx.drawImage(uploadedImage, offsetX, offsetY, drawWidth, drawHeight);
+
+            // Vẽ thêm lớp sương mù và viền tối (Vignette) giống ảnh mẫu
+            ctx.filter = 'none';
+            const gradient = ctx.createRadialGradient(300, 400, 150, 300, 400, 500);
+            gradient.addColorStop(0, 'rgba(0,0,0,0)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0.75)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+        }
+
+        // 4. Nút bật/tắt nhạc
+        toggleAudioBtn.addEventListener('click', function() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                outputCanvas.classList.add('playing-animation');
+                toggleAudioBtn.innerText = "⏸️ Tạm dừng nhạc";
+            } else {
+                audioPlayer.pause();
+                outputCanvas.classList.remove('playing-animation');
+                toggleAudioBtn.innerText = "▶️ Phát tiếp nhạc";
+            }
+        });
+
+        // 5. Nút tải ảnh về máy
+        downloadBtn.addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = 'AI-Music-Poster.png';
+            link.href = outputCanvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
+</html>
